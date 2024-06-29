@@ -22,14 +22,17 @@ final public class OpenAI: OpenAIProtocol {
         
         /// API host. Set this property if you use some kind of proxy or your own server. Default is api.openai.com
         public let host: String
-        
+        public let port: Int
+        public let scheme: String
         /// Default request timeout
         public let timeoutInterval: TimeInterval
         
-        public init(token: String, organizationIdentifier: String? = nil, host: String = "api.openai.com", timeoutInterval: TimeInterval = 60.0) {
+        public init(token: String, organizationIdentifier: String? = nil, host: String = "api.openai.com", port: Int = 443, scheme: String = "https", timeoutInterval: TimeInterval = 60.0) {
             self.token = token
             self.organizationIdentifier = organizationIdentifier
             self.host = host
+            self.port = port
+            self.scheme = scheme
             self.timeoutInterval = timeoutInterval
         }
     }
@@ -60,8 +63,8 @@ final public class OpenAI: OpenAIProtocol {
         performRequest(request: JSONRequest<CompletionsResult>(body: query, url: buildURL(path: .completions)), completion: completion)
     }
     
-    public func completionsStream(query: CompletionsQuery, onResult: @escaping (Result<CompletionsResult, Error>) -> Void, completion: ((Error?) -> Void)?) {
-        performStreamingRequest(request: JSONRequest<CompletionsResult>(body: query.makeStreamable(), url: buildURL(path: .completions)), onResult: onResult, completion: completion)
+    public func completionsStream(query: CompletionsQuery, control: StreamControl = StreamControl(), onResult: @escaping (Result<CompletionsResult, Error>) -> Void, completion: ((Error?) -> Void)?) {
+        performStreamingRequest(request: JSONRequest<CompletionsResult>(body: query.makeStreamable(), url: buildURL(path: .completions)), control: control, onResult: onResult, completion: completion)
     }
     
     public func images(query: ImagesQuery, completion: @escaping (Result<ImagesResult, Error>) -> Void) {
@@ -85,9 +88,17 @@ final public class OpenAI: OpenAIProtocol {
     }
     
     public func chatsStream(query: ChatQuery, onResult: @escaping (Result<ChatStreamResult, Error>) -> Void, completion: ((Error?) -> Void)?) {
-        performStreamingRequest(request: JSONRequest<ChatStreamResult>(body: query.makeStreamable(), url: buildURL(path: .chats)), onResult: onResult, completion: completion)
+        performStreamingRequest(request: JSONRequest<ChatResult>(body: query.makeStreamable(), url: buildURL(path: .chats)), onResult: onResult, completion: completion)
     }
     
+    public func chatsStream(query: ChatQuery, control: StreamControl = StreamControl(), onResult: @escaping (Result<ChatStreamResult, Error>) -> Void, completion: ((Error?) -> Void)?) {
+        performStreamingRequest(request: JSONRequest<ChatResult>(body: query.makeStreamable(), url: buildURL(path: .chats)), control: control, onResult: onResult, completion: completion)
+    }
+    
+    public func chatsStream(query: ChatQuery, url: URL, control: StreamControl = StreamControl(), onResult: @escaping (Result<ChatStreamResult, Error>) -> Void, completion: ((Error?) -> Void)?) {
+        performStreamingRequest(request: JSONRequest<ChatStreamResult>(body: query.makeStreamable(), url: url), control: control, onResult: onResult, completion: completion)
+    }
+        
     public func edits(query: EditsQuery, completion: @escaping (Result<EditsResult, Error>) -> Void) {
         performRequest(request: JSONRequest<EditsResult>(body: query, url: buildURL(path: .edits)), completion: completion)
     }
@@ -100,6 +111,7 @@ final public class OpenAI: OpenAIProtocol {
         performRequest(request: JSONRequest<ModelsResult>(url: buildURL(path: .models), method: "GET"), completion: completion)
     }
     
+    @available(iOS 13.0, *)
     public func moderations(query: ModerationsQuery, completion: @escaping (Result<ModerationsResult, Error>) -> Void) {
         performRequest(request: JSONRequest<ModerationsResult>(body: query, url: buildURL(path: .moderations)), completion: completion)
     }
@@ -145,13 +157,14 @@ extension OpenAI {
         }
     }
     
-    func performStreamingRequest<ResultType: Codable>(request: any URLRequestBuildable, onResult: @escaping (Result<ResultType, Error>) -> Void, completion: ((Error?) -> Void)?) {
+    func performStreamingRequest<ResultType: Codable>(request: any URLRequestBuildable, control: StreamControl = StreamControl(), onResult: @escaping (Result<ResultType, Error>) -> Void, completion: ((Error?) -> Void)?) {
         do {
             let request = try request.build(token: configuration.token, 
                                             organizationIdentifier: configuration.organizationIdentifier,
                                             timeoutInterval: configuration.timeoutInterval)
             let session = StreamingSession<ResultType>(urlRequest: request)
-            session.onReceiveContent = {_, object in
+            control.setSession(session as! StreamingSession<ChatStreamResult>)
+            session.onReceiveContent = { _, object in
                 onResult(.success(object))
             }
             session.onProcessingError = {_, error in
@@ -195,8 +208,9 @@ extension OpenAI {
     
     func buildURL(path: String) -> URL {
         var components = URLComponents()
-        components.scheme = "https"
+        components.scheme = configuration.scheme
         components.host = configuration.host
+        components.port = configuration.port
         components.path = path
         return components.url!
     }

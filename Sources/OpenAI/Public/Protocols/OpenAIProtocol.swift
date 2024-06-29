@@ -42,14 +42,14 @@ public protocol OpenAIProtocol {
        - onResult: A closure which receives the result when the API request finishes. The closure's parameter, `Result<CompletionsResult, Error>`, will contain either the `CompletionsResult` object with the generated completions, or an error if the request failed.
        - completion: A closure that is being called when all chunks are delivered or uncrecoverable error occured
     **/
-    func completionsStream(query: CompletionsQuery, onResult: @escaping (Result<CompletionsResult, Error>) -> Void, completion: ((Error?) -> Void)?)
+    func completionsStream(query: CompletionsQuery, control: StreamControl, onResult: @escaping (Result<CompletionsResult, Error>) -> Void, completion: ((Error?) -> Void)?)
     
     /**
      This function sends an images query to the OpenAI API and retrieves generated images in response. The Images Generation API enables you to create various images or graphics using OpenAI's powerful deep learning models.
 
      Example:
      ```
-     let query = ImagesQuery(prompt: "White cat with heterochromia sitting on the kitchen table", n: 1, size: "1024x1024")
+     let query = ImagesQuery(prompt: "White cat with heterochromia sitting on the kitchen table", n: 1, size: ImagesQuery.Size._1024)
      openAI.images(query: query) { result in
        //Handle result here
      }
@@ -66,7 +66,7 @@ public protocol OpenAIProtocol {
 
      Example:
      ```
-     let query = ImagesEditQuery(image: "@whitecat.png", prompt: "White cat with heterochromia sitting on the kitchen table with a bowl of food", n: 1, size: "1024x1024")
+     let query = ImagesEditQuery(image: "@whitecat.png", prompt: "White cat with heterochromia sitting on the kitchen table with a bowl of food", n: 1, size: ImagesQuery.Size._1024)
      openAI.imageEdits(query: query) { result in
        //Handle result here
      }
@@ -83,7 +83,7 @@ public protocol OpenAIProtocol {
 
      Example:
      ```
-     let query = ImagesVariationQuery(image: "@whitecat.png", n: 1, size: "1024x1024")
+     let query = ImagesVariationQuery(image: "@whitecat.png", n: 1, size: ImagesQuery.Size._1024)
      openAI.imageVariations(query: query) { result in
        //Handle result here
      }
@@ -145,7 +145,14 @@ public protocol OpenAIProtocol {
        - onResult: A closure which receives the result when the API request finishes. The closure's parameter, `Result<ChatStreamResult, Error>`, will contain either the `ChatStreamResult` object with the model's response to the conversation, or an error if the request failed.
        - completion: A closure that is being called when all chunks are delivered or uncrecoverable error occured
     **/
-    func chatsStream(query: ChatQuery, onResult: @escaping (Result<ChatStreamResult, Error>) -> Void, completion: ((Error?) -> Void)?)
+    func chatsStream(query: ChatQuery, control: StreamControl, onResult: @escaping (Result<ChatStreamResult, Error>) -> Void, completion: ((Error?) -> Void)?)
+    
+    /**
+     This function sends a chat query to the OpenAI API and retrieves chat stream conversation responses. 
+     
+     The Chat API enables you to use custom url to start a chat query.
+    **/
+    func chatsStream(query: ChatQuery, url: URL, control: StreamControl, onResult: @escaping (Result<ChatStreamResult, Error>) -> Void, completion: ((Error?) -> Void)?)
     
     /**
      This function sends an edits query to the OpenAI API and retrieves an edited version of the prompt based on the instruction given.
@@ -211,6 +218,7 @@ public protocol OpenAIProtocol {
        - query: A `ModerationsQuery` object containing the input parameters for the API request. This includes the input text and optionally the model to be used.
        - completion: A closure which receives the result when the API request finishes. The closure's parameter, `Result<ModerationsResult, Error>`, will contain either the `ModerationsResult` object with the list of category results, or an error if the request failed.
     **/
+    @available(iOS 13.0, *)
     func moderations(query: ModerationsQuery, completion: @escaping (Result<ModerationsResult, Error>) -> Void)
     
     /**

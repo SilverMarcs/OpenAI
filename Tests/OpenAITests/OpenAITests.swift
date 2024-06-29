@@ -245,8 +245,8 @@ class OpenAITests: XCTestCase {
     func testModerations() async throws {
         let query = ModerationsQuery(input: "Hello, world!")
         let moderationsResult = ModerationsResult(id: "foo", model: .moderation, results: [
-            .init(categories: .init(hate: false, hateThreatening: false, selfHarm: false, sexual: false, sexualMinors: false, violence: false, violenceGraphic: false),
-                  categoryScores: .init(hate: 0.1, hateThreatening: 0.1, selfHarm: 0.1, sexual: 0.1, sexualMinors: 0.1, violence: 0.1, violenceGraphic: 0.1),
+            .init(categories: .init(harassment: false, harassmentThreatening: false, hate: false, hateThreatening: false, selfHarm: false, selfHarmIntent: false, selfHarmInstructions: false, sexual: false, sexualMinors: false, violence: false, violenceGraphic: false),
+                  categoryScores: .init(harassment: 0.1, harassmentThreatening: 0.1, hate: 0.1, hateThreatening: 0.1, selfHarm: 0.1, selfHarmIntent: 0.1, selfHarmInstructions: 0.1, sexual: 0.1, sexualMinors: 0.1, violence: 0.1, violenceGraphic: 0.1),
                   flagged: false)
         ])
         try self.stub(result: moderationsResult)
@@ -254,7 +254,21 @@ class OpenAITests: XCTestCase {
         let result = try await openAI.moderations(query: query)
         XCTAssertEqual(result, moderationsResult)
     }
-    
+
+    func testModerationsIterable() {
+        let categories = ModerationsResult.Moderation.Categories(harassment: false, harassmentThreatening: false, hate: false, hateThreatening: false, selfHarm: false, selfHarmIntent: false, selfHarmInstructions: false, sexual: false, sexualMinors: false, violence: false, violenceGraphic: false)
+        Mirror(reflecting: categories).children.enumerated().forEach { index, element in
+            let label = ModerationsResult.Moderation.Categories.CodingKeys.allCases[index].stringValue.replacing(try! Regex("[/-]"), with: { _ in "" })
+            XCTAssertEqual(label, element.label!.lowercased())
+        }
+
+        let categoryScores = ModerationsResult.Moderation.CategoryScores(harassment: 0.1, harassmentThreatening: 0.1, hate: 0.1, hateThreatening: 0.1, selfHarm: 0.1, selfHarmIntent: 0.1, selfHarmInstructions: 0.1, sexual: 0.1, sexualMinors: 0.1, violence: 0.1, violenceGraphic: 0.1)
+        Mirror(reflecting: categoryScores).children.enumerated().forEach { index, element in
+            let label = ModerationsResult.Moderation.CategoryScores.CodingKeys.allCases[index].stringValue.replacing(try! Regex("[/-]"), with: { _ in "" })
+            XCTAssertEqual(label, element.label!.lowercased())
+        }
+    }
+
     func testModerationsError() async throws {
         let query = ModerationsQuery(input: "Hello, world!")
         let inError = APIError(message: "foo", type: "bar", param: "baz", code: "100")
@@ -378,14 +392,14 @@ class OpenAITests: XCTestCase {
         let configuration = OpenAI.Configuration(token: "foo", organizationIdentifier: "bar", timeoutInterval: 14)
         let openAI = OpenAI(configuration: configuration, session: self.urlSession)
         let chatsURL = openAI.buildURL(path: .chats)
-        XCTAssertEqual(chatsURL, URL(string: "https://api.openai.com/v1/chat/completions"))
+        XCTAssertEqual(chatsURL, URL(string: "https://api.openai.com:443/v1/chat/completions"))
     }
     
     func testCustomURLBuilt() {
         let configuration = OpenAI.Configuration(token: "foo", organizationIdentifier: "bar", host: "my.host.com", timeoutInterval: 14)
         let openAI = OpenAI(configuration: configuration, session: self.urlSession)
         let chatsURL = openAI.buildURL(path: .chats)
-        XCTAssertEqual(chatsURL, URL(string: "https://my.host.com/v1/chat/completions"))
+        XCTAssertEqual(chatsURL, URL(string: "https://my.host.com:443/v1/chat/completions"))
     }
 }
 
