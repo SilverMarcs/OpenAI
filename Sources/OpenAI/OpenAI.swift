@@ -208,7 +208,7 @@ extension OpenAI {
     
     func buildURL(path: String, isManual: Bool = true) -> URL {
         if isManual {
-            let url = configuration.scheme + configuration.host + path
+            let url = configuration.scheme + "://" + configuration.host + path
             return URL(string: url)!
         } else {
             var components = URLComponents()
