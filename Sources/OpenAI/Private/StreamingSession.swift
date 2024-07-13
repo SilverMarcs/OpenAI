@@ -65,7 +65,7 @@ final class StreamingSession<ResultType: Codable>: NSObject, Identifiable, URLSe
 extension StreamingSession {
     
     private func processJSON(from stringContent: String) {
-        print("Raw string content received: \(stringContent)")
+        // print("Raw string content received: \(stringContent)")
         
         if stringContent.isEmpty {
             print("Received empty string content")
@@ -77,7 +77,7 @@ extension StreamingSession {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         
-        print("Processed JSON objects: \(jsonObjects)")
+        // print("Processed JSON objects: \(jsonObjects)")
         
         previousChunkBuffer = ""
         
@@ -92,7 +92,7 @@ extension StreamingSession {
             
             // Check for stream completion marker
             if jsonContent == streamingCompletionMarker {
-                print("Stream completion marker found, skipping")
+                // print("Stream completion marker found, skipping")
                 continue
             }
             
@@ -101,7 +101,7 @@ extension StreamingSession {
             let cleanJsonContent = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
             
             guard let jsonData = cleanJsonContent.data(using: .utf8) else {
-                print("Failed to convert JSON content to Data")
+                // print("Failed to convert JSON content to Data")
                 onProcessingError?(self, StreamingError.unknownContent)
                 continue
             }
@@ -109,26 +109,26 @@ extension StreamingSession {
             let decoder = JSONDecoder()
             do {
                 let object = try decoder.decode(ResultType.self, from: jsonData)
-                print("Successfully decoded JSON")
+                // print("Successfully decoded JSON")
                 onReceiveContent?(self, object)
             } catch {
                 print("Error decoding JSON: \(error)")
                 print("Problematic JSON content: \(cleanJsonContent)")
                 
                 if let decoded = try? decoder.decode(APIErrorResponse.self, from: jsonData) {
-                    print("Decoded as API Error Response")
+                    // print("Decoded as API Error Response")
                     onProcessingError?(self, decoded)
                 } else if index == jsonObjects.count - 1 {
-                    print("Partial JSON detected, storing in buffer")
+                    // print("Partial JSON detected, storing in buffer")
                     previousChunkBuffer = "data: \(cleanJsonContent)"
                 } else {
-                    print("Unhandled JSON decoding error")
+                    // print("Unhandled JSON decoding error")
                     onProcessingError?(self, error)
                 }
             }
         }
         
-        print("Finished processing all JSON objects")
+        // print("Finished processing all JSON objects")
     }
 
 
