@@ -208,7 +208,12 @@ extension OpenAI {
     
     func buildURL(path: String, isManual: Bool = true) -> URL {
         if isManual {
-            let url = configuration.scheme + "://" + configuration.host + path
+            var finalPath = path
+            if configuration.host == "api.perplexity.ai" {
+                finalPath = path.replacingOccurrences(of: "/v1", with: "")
+            }
+            
+            let url = configuration.scheme + "://" + configuration.host + finalPath
             return URL(string: url)!
         } else {
             var components = URLComponents()

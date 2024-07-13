@@ -65,42 +65,73 @@ final class StreamingSession<ResultType: Codable>: NSObject, Identifiable, URLSe
 extension StreamingSession {
     
     private func processJSON(from stringContent: String) {
+        print("Raw string content received: \(stringContent)")
+        
         if stringContent.isEmpty {
+            print("Received empty string content")
             return
         }
+        
         let jsonObjects = "\(previousChunkBuffer)\(stringContent)"
-            .trimmingCharacters(in: .whitespacesAndNewlines)
             .components(separatedBy: "data:")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { $0.isEmpty == false }
-
+            .filter { !$0.isEmpty }
+        
+        print("Processed JSON objects: \(jsonObjects)")
+        
         previousChunkBuffer = ""
         
-        guard jsonObjects.isEmpty == false, jsonObjects.first != streamingCompletionMarker else {
-            return
-        }
-        jsonObjects.enumerated().forEach { (index, jsonContent)  in
-            guard jsonContent != streamingCompletionMarker && !jsonContent.isEmpty else {
-                return
+        for (index, jsonContent) in jsonObjects.enumerated() {
+            print("Processing JSON content: \(jsonContent)")
+            
+            // Skip SSE comments. Fixes OpenRouter
+            if jsonContent.hasPrefix(":") {
+                print("Skipping SSE comment")
+                continue
             }
-            guard let jsonData = jsonContent.data(using: .utf8) else {
+            
+            // Check for stream completion marker
+            if jsonContent == streamingCompletionMarker {
+                print("Stream completion marker found, skipping")
+                continue
+            }
+            
+            // Split the JSON content if it contains an SSE comment
+            let parts = jsonContent.components(separatedBy: "\n\n:")
+            let cleanJsonContent = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            guard let jsonData = cleanJsonContent.data(using: .utf8) else {
+                print("Failed to convert JSON content to Data")
                 onProcessingError?(self, StreamingError.unknownContent)
-                return
+                continue
             }
+            
             let decoder = JSONDecoder()
             do {
                 let object = try decoder.decode(ResultType.self, from: jsonData)
+                print("Successfully decoded JSON")
                 onReceiveContent?(self, object)
             } catch {
+                print("Error decoding JSON: \(error)")
+                print("Problematic JSON content: \(cleanJsonContent)")
+                
                 if let decoded = try? decoder.decode(APIErrorResponse.self, from: jsonData) {
+                    print("Decoded as API Error Response")
                     onProcessingError?(self, decoded)
                 } else if index == jsonObjects.count - 1 {
-                    previousChunkBuffer = "data: \(jsonContent)" // Chunk ends in a partial JSON
+                    print("Partial JSON detected, storing in buffer")
+                    previousChunkBuffer = "data: \(cleanJsonContent)"
                 } else {
+                    print("Unhandled JSON decoding error")
                     onProcessingError?(self, error)
                 }
             }
         }
+        
+        print("Finished processing all JSON objects")
     }
+
+
+
     
 }
