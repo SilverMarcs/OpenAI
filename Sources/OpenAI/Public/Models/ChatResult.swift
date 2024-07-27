@@ -70,6 +70,8 @@ public struct ChatResult: Codable, Equatable {
         public enum FinishReason: String, Codable, Equatable {
             case stop
             case length
+            case eos
+            case null
             case toolCalls = "tool_calls"
             case contentFilter = "content_filter"
             case functionCall = "function_call"

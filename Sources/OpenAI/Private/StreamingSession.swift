@@ -65,10 +65,10 @@ final class StreamingSession<ResultType: Codable>: NSObject, Identifiable, URLSe
 extension StreamingSession {
     
     private func processJSON(from stringContent: String) {
-        // print("Raw string content received: \(stringContent)")
+        // print("Raw string content received:\n\(stringContent.trimmingCharacters(in: .whitespacesAndNewlines))")
         
         if stringContent.isEmpty {
-            print("Received empty string content")
+            print("⚠️ Received empty string content")
             return
         }
         
@@ -77,31 +77,29 @@ extension StreamingSession {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         
-        // print("Processed JSON objects: \(jsonObjects)")
+        // print("Processed JSON objects:\n\(jsonObjects.joined(separator: "\n"))")
         
         previousChunkBuffer = ""
         
         for (index, jsonContent) in jsonObjects.enumerated() {
-            print("Processing JSON content: \(jsonContent)")
+            print("\n--- Processing JSON content #\(index + 1) ---")
+            prettyPrintJSON(jsonContent)
             
-            // Skip SSE comments. Fixes OpenRouter
             if jsonContent.hasPrefix(":") {
-                print("Skipping SSE comment")
+                print("⏩ Skipping SSE comment")
                 continue
             }
             
-            // Check for stream completion marker
             if jsonContent == streamingCompletionMarker {
-                // print("Stream completion marker found, skipping")
+                // print("🏁 Stream completion marker found, skipping")
                 continue
             }
             
-            // Split the JSON content if it contains an SSE comment
             let parts = jsonContent.components(separatedBy: "\n\n:")
             let cleanJsonContent = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
             
             guard let jsonData = cleanJsonContent.data(using: .utf8) else {
-                // print("Failed to convert JSON content to Data")
+                // print("❌ Failed to convert JSON content to Data")
                 onProcessingError?(self, StreamingError.unknownContent)
                 continue
             }
@@ -109,29 +107,38 @@ extension StreamingSession {
             let decoder = JSONDecoder()
             do {
                 let object = try decoder.decode(ResultType.self, from: jsonData)
-                // print("Successfully decoded JSON")
+                // print("✅ Successfully decoded JSON")
                 onReceiveContent?(self, object)
             } catch {
-                print("Error decoding JSON: \(error)")
-                print("Problematic JSON content: \(cleanJsonContent)")
+                print("❌ Error decoding JSON:")
+                print("🔍 Error details: \(error)")
+                print("🔍 Problematic JSON content:")
+                prettyPrintJSON(cleanJsonContent)
                 
                 if let decoded = try? decoder.decode(APIErrorResponse.self, from: jsonData) {
-                    // print("Decoded as API Error Response")
+                    // print("⚠️ Decoded as API Error Response")
                     onProcessingError?(self, decoded)
                 } else if index == jsonObjects.count - 1 {
-                    // print("Partial JSON detected, storing in buffer")
+//                     print("📌 Partial JSON detected, storing in buffer")
                     previousChunkBuffer = "data: \(cleanJsonContent)"
                 } else {
-                    // print("Unhandled JSON decoding error")
+//                     print("❓ Unhandled JSON decoding error")
                     onProcessingError?(self, error)
                 }
             }
         }
         
-        // print("Finished processing all JSON objects")
+         print("🏁 Finished processing all JSON objects")
     }
 
-
-
-    
+    private func prettyPrintJSON(_ jsonString: String) {
+        if let data = jsonString.data(using: .utf8),
+           let jsonObject = try? JSONSerialization.jsonObject(with: data, options: []),
+           let prettyPrintedData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.prettyPrinted]),
+           let prettyPrintedString = String(data: prettyPrintedData, encoding: .utf8) {
+            print(prettyPrintedString)
+        } else {
+            print(jsonString)  // Fallback if pretty-printing fails
+        }
+    }
 }
