@@ -209,7 +209,7 @@ extension OpenAI {
     func buildURL(path: String, isManual: Bool = true) -> URL {
         if isManual {
             var finalPath = path
-            if configuration.host == "api.perplexity.ai" {
+            if configuration.host == "api.perplexity.ai" ||  configuration.host == "models.inference.ai.azure.com" {
                 finalPath = path.replacingOccurrences(of: "/v1", with: "")
             }
             
