@@ -91,7 +91,7 @@ public struct ChatQuery: Equatable, Codable, Streamable {
         topP: Double? = nil,
         user: String? = nil,
         stream: Bool = false,
-        streamOptions: Self.StreamOptions? = .init(includeUsage: true)
+        streamOptions: Self.StreamOptions? = nil
     ) {
         self.messages = messages
         self.model = model
