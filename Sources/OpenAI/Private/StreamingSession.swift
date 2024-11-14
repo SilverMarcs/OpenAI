@@ -66,10 +66,10 @@ extension StreamingSession {
     
     #if DEBUG
     private func processJSON(from stringContent: String) {
-//        print("Raw string content received:\n\(stringContent.trimmingCharacters(in: .whitespacesAndNewlines))")
+        // print("Raw string content received:\n\(stringContent.trimmingCharacters(in: .whitespacesAndNewlines))")
         
         if stringContent.isEmpty {
-            print("⚠️ Received empty string content")
+            print(" Received empty string content")
             return
         }
         
@@ -78,21 +78,20 @@ extension StreamingSession {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         
-//        print("Processed JSON objects:\n\(jsonObjects.joined(separator: "\n"))")
+        // print("Processed JSON objects:\n\(jsonObjects.joined(separator: "\n"))")
         
         previousChunkBuffer = ""
         
         for (index, jsonContent) in jsonObjects.enumerated() {
-            print("\n--- Processing JSON content #\(index + 1) ---")
-            prettyPrintJSON(jsonContent)
+            // prettyPrintJSON(jsonContent)
             
             if jsonContent.hasPrefix(":") {
-                print("⏩ Skipping SSE comment")
+                // print(" Skipping SSE comment")
                 continue
             }
             
             if jsonContent == streamingCompletionMarker {
-                print("🏁 Stream completion marker found, skipping")
+                // print(" Stream completion marker found, skipping")
                 continue
             }
             
@@ -100,7 +99,7 @@ extension StreamingSession {
             let cleanJsonContent = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
             
             guard let jsonData = cleanJsonContent.data(using: .utf8) else {
-                print("❌ Failed to convert JSON content to Data")
+                print(" Failed to convert JSON content to Data")
                 onProcessingError?(self, StreamingError.unknownContent)
                 continue
             }
@@ -108,29 +107,30 @@ extension StreamingSession {
             let decoder = JSONDecoder()
             do {
                 let object = try decoder.decode(ResultType.self, from: jsonData)
-                print("✅ Successfully decoded JSON")
+                // print(" Successfully decoded JSON")
                 onReceiveContent?(self, object)
             } catch {
-                print("❌ Error decoding JSON:")
-                print("🔍 Error details: \(error)")
-                print("🔍 Problematic JSON content:")
+                print("Error decoding JSON:")
+                print("Error details: \(error)")
+                print("Problematic JSON content:")
                 prettyPrintJSON(cleanJsonContent)
                 
                 if let decoded = try? decoder.decode(APIErrorResponse.self, from: jsonData) {
-                    print("⚠️ Decoded as API Error Response")
+                    print("Decoded as API Error Response")
                     onProcessingError?(self, decoded)
                 } else if index == jsonObjects.count - 1 {
-                    print("📌 Partial JSON detected, storing in buffer")
+                    // print(" Partial JSON detected, storing in buffer")
                     previousChunkBuffer = "data: \(cleanJsonContent)"
                 } else {
-                    print("❓ Unhandled JSON decoding error")
+                    print("Unhandled JSON decoding error")
                     onProcessingError?(self, error)
                 }
             }
         }
         
-        print("🏁 Finished processing all JSON objects")
+        // print(" Finished processing all JSON objects")
     }
+
     #else
     private func processJSON(from stringContent: String) {
         if stringContent.isEmpty {
